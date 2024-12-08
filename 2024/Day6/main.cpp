@@ -151,6 +151,96 @@ std::tuple<int,int,Direction> nextStep(boost::multi_array<char, 2> &grid, std::t
     return {nextRow,nextCol,nextDir};
 }
 
+bool
+willLoop(boost::multi_array<char, 2> const &grid, std::tuple<int, int, Direction> location)
+{
+    auto [row, col, direction] = location;
+    switch (direction)
+    {
+        case Direction::Up:
+            for (; row > 1; --row)
+            {
+                if (grid[row - 2][col] == '#')
+                {
+                    switch (grid[row - 1][col])
+                    {
+                        case '+': return true;
+                        case '-': return willLoop(grid, {row - 1, col, nextDirection(direction)});
+                        default: return false;
+                    }
+                }
+            }
+            break;
+        case Direction::Right:
+            for (; col < grid.shape()[1] - 2; ++col)
+            {
+                if (grid[row][col + 2] == '#')
+                {
+                    switch (grid[row][col + 1])
+                    {
+                        case '+': return true;
+                        case '|': return willLoop(grid, {row, col + 1, nextDirection(direction)});
+                        default: return false;
+                    }
+                }
+            }
+            break;
+        case Direction::Down:
+            for (; row < grid.shape()[0] - 2; ++row)
+            {
+                if (grid[row + 2][col] == '#')
+                {
+                    switch (grid[row + 1][col])
+                    {
+                        case '+': return true;
+                        case '-': return willLoop(grid, {row + 1, col, nextDirection(direction)});
+                        default: return false;
+                    }
+                }
+            }
+            break;
+        case Direction::Left:
+            for (; col > 1; --col)
+            {
+                if (grid[row][col - 2] == '#')
+                {
+                    switch (grid[row][col - 1])
+                    {
+                        case '+': return true;
+                        case '|': return willLoop(grid, {row, col - 1, nextDirection(direction)});
+                        default: return false;
+                    }
+                }
+            }
+            break;
+        case Direction::None:
+            break;
+    }
+    return false;
+}
+
+bool canPlaceBlock(boost::multi_array<char, 2> const &grid, std::tuple<int, int, Direction> location)
+{
+    auto [row, col, direction] = location;
+    switch(direction)
+    {
+        case Direction::None: return false;
+        case Direction::Up:
+            if(row-1 < 0 || boost::is_any_of("^#")(grid[row-1][col])) return false;
+            return willLoop(grid, {row,col, nextDirection(direction)});
+        case Direction::Right:
+            if(col+1 >= grid.shape()[1] || boost::is_any_of("^#")(grid[row][col+1])) return false;
+            return willLoop(grid, {row,col, nextDirection(direction)});
+        case Direction::Down:
+            if(row+1 >= grid.shape()[0] || boost::is_any_of("^#")(grid[row+1][col])) return false;
+            return willLoop(grid, {row,col, nextDirection(direction)});
+        case Direction::Left:
+            if(col-1 < 0 || boost::is_any_of("^#")(grid[row][col-1])) return false;
+            return willLoop(grid, {row,col, nextDirection(direction)});
+    }
+    return false;
+}
+
 std::pair<std::tuple<int, int>, int>
 walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start, Direction d)
 {
@@ -230,7 +320,7 @@ main()
 
     std::vector<std::string> lines;
     {
-        std::fstream input("input_test.txt", std::ios::in);
+        std::fstream input("input.txt", std::ios::in);
         if (!input.is_open())
         {
             fmt::print(stderr, "Can't open file.");
@@ -283,10 +373,13 @@ main()
         std::tuple<int, int, Direction>
             lastPosition{location.get_indices()[0], location.get_indices()[1], Direction::Up};
         int PassNumber = 1;
+        int blockCount = 0;
         do
         {
             auto [row,col,dir] = lastPosition;
-            fmt::print("Pass: {} Start: ({},{},{})\n", PassNumber, row, col, [dir]{
+            auto blockable = canPlaceBlock(part2grid, lastPosition);
+#if 0
+            fmt::print("Step: {} Start: ({},{},{}) Can place block: {}\n", PassNumber, row, col, [dir]{
                 switch(dir)
                 {
                     case Direction::Up: return "Up";
@@ -296,11 +389,18 @@ main()
                     case Direction::None: break;
                 }
                 return "-";
-            }());
+            }(), blockable);
+#endif
+            if(blockable)
+            {
+                ++blockCount;
+            }
             lastPosition = nextStep(part2grid, lastPosition);
-            printGrid(part2grid);
+            //printGrid(part2grid);
             ++PassNumber;
         }while(lastPosition != std::tuple<int,int,Direction>{-1,-1,Direction::None});
+
+        fmt::print("Block Count: {}\n", blockCount);
     }
 
     return 0;
