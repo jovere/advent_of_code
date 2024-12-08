@@ -6,6 +6,7 @@
 
 enum class Direction
 {
+    None,
     Up,
     Right,
     Down,
@@ -30,6 +31,7 @@ nextDirection(Direction &d)
 {
     switch (d)
     {
+        case Direction::None:return d = Direction::None;
         case Direction::Up: return d = Direction::Right;
         case Direction::Right:return d = Direction::Down;
         case Direction::Down:return d = Direction::Left;
@@ -38,7 +40,119 @@ nextDirection(Direction &d)
     abort();
 };
 
-std::pair<std::tuple<int,int>, int> walkToNextObstacle(boost::multi_array<char, 2>& grid, std::tuple<int, int> start, Direction d)
+std::tuple<int,int,Direction> nextStep(boost::multi_array<char, 2> &grid, std::tuple<int, int,Direction> location)
+{
+    auto const [row, col, direction] = location;
+    auto nextRow = row;
+    auto nextCol = col;
+    auto nextDir = direction;
+    auto reset = [&nextRow, &nextCol, &nextDir]()
+    {
+        nextRow = nextCol = -1;
+        nextDir = Direction::None;
+    };
+
+    while(row == nextRow && col == nextCol)
+    {
+        switch (nextDir)
+        {
+            case Direction::Up:
+                if (nextRow > 0 && grid[nextRow - 1][nextCol] != '#')
+                {
+                    --nextRow;
+                    switch (grid[nextRow][nextCol])
+                    {
+                        case '.': grid[nextRow][nextCol] = '|';
+                            break;
+                        case '-': grid[nextRow][nextCol] = '+';
+                            break;
+                    }
+                }
+                else if (nextRow == 0)
+                {
+                    reset();
+                }
+                else
+                {
+                    grid[nextRow][nextCol] = '+';
+                    nextDirection(nextDir);
+                }
+                break;
+            case Direction::Right:
+                if (nextCol < grid.shape()[1] - 1 && grid[nextRow][nextCol + 1] != '#')
+                {
+                    ++nextCol;
+                    switch (grid[nextRow][nextCol])
+                    {
+                        case '.': grid[nextRow][nextCol] = '-';
+                            break;
+                        case '|': grid[nextRow][nextCol] = '+';
+                            break;
+                    }
+                }
+                else if (nextCol == grid.shape()[1] - 1)
+                {
+                    reset();
+                }
+                else
+                {
+                    grid[nextRow][nextCol] = '+';
+                    nextDirection(nextDir);
+                }
+                break;
+            case Direction::Down:
+                if (nextRow < grid.shape()[0] - 1 && grid[nextRow + 1][nextCol] != '#')
+                {
+                    ++nextRow;
+                    switch (grid[nextRow][nextCol])
+                    {
+                        case '.': grid[nextRow][nextCol] = '|';
+                            break;
+                        case '-': grid[nextRow][nextCol] = '+';
+                            break;
+                    }
+                }
+                else if (nextRow == grid.shape()[0] - 1)
+                {
+                    reset();
+                }
+                else
+                {
+                    grid[nextRow][nextCol] = '+';
+                    nextDirection(nextDir);
+                }
+                break;
+            case Direction::Left:
+                if (nextCol > 0 && grid[nextRow][nextCol - 1] != '#')
+                {
+                    --nextCol;
+                    switch (grid[nextRow][nextCol])
+                    {
+                        case '.': grid[nextRow][nextCol] = '-';
+                            break;
+                        case '|': grid[nextRow][nextCol] = '+';
+                            break;
+                    }
+                }
+                else if (nextCol == 0)
+                {
+                    reset();
+                }
+                else
+                {
+                    grid[nextRow][nextCol] = '+';
+                    nextDirection(nextDir);
+                }
+                break;
+            case Direction::None:
+                break;
+        }
+    }
+    return {nextRow,nextCol,nextDir};
+}
+
+std::pair<std::tuple<int, int>, int>
+walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start, Direction d)
 {
     std::tuple<int, int> stop{-1, -1};
     int steps = 0;
@@ -146,6 +260,7 @@ main()
 
     printGrid(grid);
 
+    if (0)
     {
         auto part1grid = grid;
         int totalSteps = 0;
@@ -163,6 +278,30 @@ main()
         fmt::print("Total Unique Steps: {}\n", totalSteps);
     }
 
+    {
+        auto part2grid = grid;
+        std::tuple<int, int, Direction>
+            lastPosition{location.get_indices()[0], location.get_indices()[1], Direction::Up};
+        int PassNumber = 1;
+        do
+        {
+            auto [row,col,dir] = lastPosition;
+            fmt::print("Pass: {} Start: ({},{},{})\n", PassNumber, row, col, [dir]{
+                switch(dir)
+                {
+                    case Direction::Up: return "Up";
+                    case Direction::Right: return "Right";
+                    case Direction::Down: return "Down";
+                    case Direction::Left: return "Left";
+                    case Direction::None: break;
+                }
+                return "-";
+            }());
+            lastPosition = nextStep(part2grid, lastPosition);
+            printGrid(part2grid);
+            ++PassNumber;
+        }while(lastPosition != std::tuple<int,int,Direction>{-1,-1,Direction::None});
+    }
 
     return 0;
 }
