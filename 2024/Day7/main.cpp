@@ -46,7 +46,7 @@ main()
         auto& expectedTotal = cal.first;
         auto& data = cal.second;
         auto operatorCount = data.size()-1;
-        uint64_t operatorCombinations = 1UL << operatorCount;
+        uint64_t operatorCombinations = std::pow(3UL, operatorCount);
 
         fmt::print("Operator count of {} is {}. ", data, operatorCount);
         fmt::print("Possible operator combinations is {}. ", operatorCombinations);
@@ -60,20 +60,24 @@ main()
             uint64_t total = std::accumulate(std::next(data.begin()), data.end(), data[0], [&combo](uint64_t a, uint64_t b)
             {
                 uint64_t retVal = 0;
-                if((combo & 0x1) == 0x1)
+                if((combo % 3) == 2)
                 {
                     retVal = a * b;
                 }
-                else
+                else if((combo % 3) == 1)
                 {
                     retVal = a + b;
                 }
-                combo /= 2;
+                else
+                {
+                    retVal = std::stol(std::to_string(a) + std::to_string(b));
+                }
+                combo /= 3;
                 return retVal;
             });
             match |= total == expectedTotal;
-            fmt::print("Operations {:0{}b} is {}. {}\n", operatorCombinations, operatorCount, total, total == expectedTotal ? "MATCH" : "");
-        }while(operatorCombinations != 0);// && !match);
+            //fmt::print("Operations {:0{}b} is {}. {}\n", operatorCombinations, operatorCount, total, total == expectedTotal ? "MATCH" : "");
+        }while(operatorCombinations != 0 && !match);
         sumTotal += (match) ? expectedTotal : 0;
     }
 
