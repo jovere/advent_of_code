@@ -18,8 +18,8 @@ main()
 
     std::string line;
 
-    // Get all the order rules from the file in a map
-    std::unordered_map<uint64_t, std::vector<uint64_t>> calibrationSet;
+    // Get all the order rules from the file in a vector
+    std::vector<std::pair<uint64_t, std::vector<uint64_t>>> calibrationSet;
     while (getline(input, line) && !line.empty())
     {
         std::vector<std::string> result;
@@ -35,7 +35,7 @@ main()
                 operands.push_back(std::stol(op));
             }
         }
-        calibrationSet.insert({std::stol(result[0]), operands});
+        calibrationSet.emplace_back(std::stol(result[0]), operands);
     }
 
     fmt::print("Map: {}\n", calibrationSet);
