@@ -39,7 +39,7 @@ nextDirection(Direction &d)
     }
     abort();
 };
-
+#ifdef TRASH
 std::tuple<int, int, Direction>
 nextStep(boost::multi_array<char, 2> &grid, std::tuple<int, int, Direction> location)
 {
@@ -251,24 +251,24 @@ canPlaceBlock(boost::multi_array<char, 2> const &grid,
     }
     return false;
 }
-
-std::pair<std::tuple<int, int>, int>
-walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start, Direction d)
+#endif
+std::pair<std::tuple<int, int, Direction>, int>
+walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int, Direction> start)
 {
-    std::tuple<int, int> stop{-1, -1};
+    std::tuple<int, int, Direction> stop{-1, -1, Direction::None};
     int steps = 0;
-
+    auto [row, col, d] = start;
     switch (d)
     {
         case Direction::Up:
-            for (auto [row, col] = start; row >= 0; --row)
+            for (; row >= 0; --row)
             {
                 if (grid[row][col] == '#')
                 {
-                    stop = {++row, col};
+                    stop = {++row, col, nextDirection(d)};
                     break;
                 }
-                else if (grid[row][col] != 'X')
+                else if (!boost::is_any_of("X^")(grid[row][col]))
                 {
                     grid[row][col] = 'X';
                     ++steps;
@@ -276,14 +276,14 @@ walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start
             }
             break;
         case Direction::Right:
-            for (auto [row, col] = start; col < grid.shape()[1]; ++col)
+            for (; col < grid.shape()[1]; ++col)
             {
                 if (grid[row][col] == '#')
                 {
-                    stop = {row, --col};
+                    stop = {row, --col, nextDirection(d)};
                     break;
                 }
-                else if (grid[row][col] != 'X')
+                else if (!boost::is_any_of("X^")(grid[row][col]))
                 {
                     grid[row][col] = 'X';
                     ++steps;
@@ -291,14 +291,14 @@ walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start
             }
             break;
         case Direction::Down:
-            for (auto [row, col] = start; row < grid.shape()[0]; ++row)
+            for (; row < grid.shape()[0]; ++row)
             {
                 if (grid[row][col] == '#')
                 {
-                    stop = {--row, col};
+                    stop = {--row, col, nextDirection(d)};
                     break;
                 }
-                else if (grid[row][col] != 'X')
+                else if (!boost::is_any_of("X^")(grid[row][col]))
                 {
                     grid[row][col] = 'X';
                     ++steps;
@@ -306,23 +306,46 @@ walkToNextObstacle(boost::multi_array<char, 2> &grid, std::tuple<int, int> start
             }
             break;
         case Direction::Left:
-            for (auto [row, col] = start; col >= 0; --col)
+            for (; col >= 0; --col)
             {
                 if (grid[row][col] == '#')
                 {
-                    stop = {row, ++col};
+                    stop = {row, ++col, nextDirection(d)};
                     break;
                 }
-                else if (grid[row][col] != 'X')
+                else if (!boost::is_any_of("X^")(grid[row][col]))
                 {
                     grid[row][col] = 'X';
                     ++steps;
                 }
             }
             break;
+        case Direction::None: break;
     }
-    fmt::print("Unique Steps: {} Stop: [{},{}]\n", steps, get<0>(stop), get<1>(stop));
+    //fmt::print("Unique Steps: {} Stop: [{},{}]\n", steps, get<0>(stop), get<1>(stop));
     return {stop, steps};
+}
+
+std::tuple<bool, boost::multi_array<char, 2>>
+executeWalk(boost::multi_array<char, 2> const &grid, std::tuple<int, int, Direction> position)
+{
+    auto part1grid = grid;
+    int totalSteps = 0;
+    Direction d = Direction::Up;
+    std::vector<std::tuple<int, int, Direction>> history;
+    do
+    {
+        history.push_back(position);
+        auto [stop, steps] = walkToNextObstacle(part1grid, position);
+        position = stop;
+        totalSteps += steps;
+    }
+    while (position != std::tuple<int, int, Direction>{-1, -1, Direction::None}
+        && std::ranges::find(history, position) == history.end());
+
+    auto loops = position != std::tuple<int, int, Direction>{-1, -1, Direction::None};
+    fmt::print("Total Unique Steps: {} Loops? {}\n", totalSteps + 1, loops);
+    return {loops, part1grid};
 }
 
 int
@@ -356,29 +379,38 @@ main()
         std::ranges::copy(lines[i], grid[i].begin());
     }
 
-    auto location = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '^');
-    fmt::print("Start Position: [{},{}] Value: {}\n", location.get_indices()[0], location.get_indices()[1], *location);
+    auto startLocation = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '^');
+    fmt::print("Start Position: [{},{}] Value: {}\n",
+               startLocation.get_indices()[0],
+               startLocation.get_indices()[1],
+               *startLocation);
 
     printGrid(grid);
 
-    if (0)
+    int loopCount = 0;
     {
-        auto part1grid = grid;
-        int totalSteps = 0;
-        std::tuple<int, int> lastPosition{location.get_indices()[0], location.get_indices()[1]};
-        Direction d = Direction::Left;
-        do
+        auto [loops, initial] =
+            executeWalk(grid, {startLocation.get_indices()[0], startLocation.get_indices()[1], Direction::Up});
+        printGrid(initial);
+        for (auto location = std::find(multi_array_helper::begin(initial), multi_array_helper::end(initial), 'X');
+             location != multi_array_helper::end(initial);
+             location = std::find(++location, multi_array_helper::end(initial), 'X'))
         {
-            auto [stop, steps] = walkToNextObstacle(part1grid, lastPosition, nextDirection(d));
-            lastPosition = stop;
-            totalSteps += steps;
+            auto row = location.get_indices()[0];
+            auto col = location.get_indices()[1];
+            fmt::print("Looking at: [{},{}] ", row, col);
+            grid[row][col] = '#';
+            auto [looping, _] =
+                executeWalk(grid, {startLocation.get_indices()[0], startLocation.get_indices()[1], Direction::Up});
+            grid[row][col] = '.';
+            if (looping)
+                ++loopCount;
         }
-        while (lastPosition != std::tuple<int, int>{-1, -1});
-        fmt::print("Ending Grid:\n");
-        printGrid(part1grid);
-        fmt::print("Total Unique Steps: {}\n", totalSteps);
+
+        fmt::print("Loop Count: {}", loopCount);
     }
 
+#ifdef TRASH
     {
         auto part2grid = grid;
         std::tuple<int, int, Direction>
@@ -390,7 +422,6 @@ main()
             auto [row, col, dir] = lastPosition;
             std::vector<std::tuple<int, int, Direction>> history{};
             auto blockable = canPlaceBlock(part2grid, lastPosition, history);
-#if 0
             fmt::print("Step: {} Start: ({},{},{}) Can place block: {}\n", PassNumber, row, col, [dir]{
                 switch(dir)
                 {
@@ -402,7 +433,6 @@ main()
                 }
                 return "-";
             }(), blockable);
-#endif
             if (blockable)
             {
                 ++blockCount;
@@ -417,6 +447,7 @@ main()
         printGrid(part2grid);
         fmt::print("Block Count: {}\n", blockCount);
     }
+#endif
 
     return 0;
 }

@@ -269,32 +269,33 @@ template <typename Array>
 class iterator : public std::iterator<std::forward_iterator_tag,boost::array<typename Array::index, Array::dimensionality>>
 {
 public:
-  explicit iterator(Array& a_, bool end=false) : a(a_)
+  explicit iterator(Array& a_, bool end=false) : a(&a_)
   {
     for (unsigned int i=0; i < Array::dimensionality; ++i)
-      idx[i] = a.index_bases()[i];
+      idx[i] = a->index_bases()[i];
     if (end)
-      idx[0] = a.index_bases()[0] + a.shape()[0];   // this denotes an end iterator
+      idx[0] = a->index_bases()[0] + a->shape()[0];   // this denotes an end iterator
   }
 
   typename Array::element
   operator*()
   {
-    return a(idx);
+    return (*a)(idx);
   }
 
-  void
+  auto
   operator++()
   {
     int i=Array::dimensionality-1;
-    while (i >= 0 and idx[i] == (int)(a.index_bases()[i] + a.shape()[i] - 1)) {
-      idx[i] = a.index_bases()[i];
+    while (i >= 0 and idx[i] == (int)(a->index_bases()[i] + a->shape()[i] - 1)) {
+      idx[i] = a->index_bases()[i];
       i -= 1;
     }
     if (i == -1)
-      idx[0] = a.index_bases()[0] + a.shape()[0];  // denotes the end iterator
+      idx[0] = a->index_bases()[0] + a->shape()[0];  // denotes the end iterator
     else
       idx[i] += 1;
+    return *this;
   }
 
   bool
@@ -310,7 +311,7 @@ public:
   }
   
 private:
-  Array& a;
+  Array* a;
   boost::array<typename Array::index, Array::dimensionality> idx;  //
 };
 
