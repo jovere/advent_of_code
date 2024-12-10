@@ -78,14 +78,12 @@ main() {
                 boost::geometry::subtract_point(diff, antiNodeA);
 
                 // Insert all nodes from antennaA and away
-                if (boost::geometry::subtract_point(antiNodeA, diff);
-                        !outsideGrid(antiNodeA)) {
+                for (; !outsideGrid(antiNodeA); boost::geometry::subtract_point(antiNodeA, diff)) {
                     antiNodes.insert(antiNodeA);
                 }
 
                 // Insert all nodes from antennaB and away
-                if (boost::geometry::add_point(antiNodeB, diff);
-                        !outsideGrid(antiNodeB)) {
+                for (; !outsideGrid(antiNodeB); boost::geometry::add_point(antiNodeB, diff)) {
                     antiNodes.insert(antiNodeB);
                 }
             }
