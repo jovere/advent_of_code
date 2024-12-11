@@ -50,11 +50,11 @@ main() {
         auto emptyStart = std::find(blocks.begin(), dataREnd.base(), -1);
         auto emptyEnd = std::find_if_not(emptyStart, dataREnd.base(), [](auto item) { return item == -1; });
         fmt::print("Data Size: {}, Empty Size: {}\n", dataREnd-dataRStart, emptyEnd-emptyStart);
-        while(std::make_reverse_iterator(emptyEnd) > dataREnd )
+        while(std::make_reverse_iterator(emptyStart) > dataREnd )
         {
             auto holeStart = emptyStart;
             auto holeEnd = emptyEnd;
-            while(std::make_reverse_iterator(holeEnd) > dataREnd)
+            while(std::make_reverse_iterator(holeStart) > dataREnd)
             {
                 // If the hole is big enough, swap the data
                 if(dataREnd - dataRStart <= holeEnd - holeStart)
@@ -62,7 +62,7 @@ main() {
                     std::swap_ranges(dataRStart,dataREnd, holeStart);
                     break;
                 }
-                holeStart = std::find(holeEnd+1, dataREnd.base(), -1);
+                holeStart = std::find(holeEnd, dataREnd.base(), -1);
                 holeEnd = std::find_if_not(holeStart, dataREnd.base(), [](auto item) { return item == -1; });
             }
             dataRStart = std::find_if_not(dataREnd, std::make_reverse_iterator(emptyStart), [](auto item) { return item == -1; });
