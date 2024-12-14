@@ -21,30 +21,36 @@ printGrid(boost::multi_array<char, 2> const &grid) {
 
 using range = boost::multi_array_types::index_range;
 
-std::set<std::tuple<std::tuple<long,long>,std::tuple<long, long>>>
-pathsFound(boost::multi_array<char, 2> const &totalGrid, boost::multi_array<char, 2> const &searchGrid,
-           std::tuple<long, long> offset, std::tuple<long, long> base, char find) {
-    std::set<std::tuple<std::tuple<long,long>,std::tuple<long, long>>> pathCount;
+std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>>
+pathsFound(boost::multi_array<char, 2> const &totalGrid, std::tuple<long, long> searchCenter,
+           std::tuple<long, long> base, char find) {
+    std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>> pathCount;
     fmt::print("Searching:\n");
-    for (auto itr = std::find(multi_array_helper::begin(searchGrid), multi_array_helper::end(searchGrid), find);
-         itr != multi_array_helper::end(searchGrid); itr = std::find(++itr, multi_array_helper::end(searchGrid),
-                                                                     find)) {
-        auto [rowOff,colOff] = offset;
-        auto row = itr.get_indices()[0] + rowOff;
-        auto col = itr.get_indices()[1] + colOff;
+    std::vector<std::tuple<long, long>> indices;
+    auto [cRow, cCol] = searchCenter;
 
-        if (find == '9') {
-            pathCount.emplace(base, std::tuple{row,col});
-            fmt::print("Found: '9' at ({},{}) Path Count: {}\n", row, col, pathCount);
-        } else {
-            fmt::print("Found: '{}' at ({},{})\n", find, row, col);
+    if (cRow > 0) {
+        indices.emplace_back(cRow - 1, cCol);
+    }
+    if (cRow < totalGrid.shape()[0] - 1) {
+        indices.emplace_back(cRow + 1, cCol);
+    }
+    if (cCol > 0) {
+        indices.emplace_back(cRow, cCol - 1);
+    }
+    if (cCol < totalGrid.shape()[1] - 1) {
+        indices.emplace_back(cRow, cCol + 1);
+    }
 
-            range rowRange{row > 0 ? row - 1 : row, row < totalGrid.shape()[0] - 1 ? row + 2 : row + 1};
-            range colRange{col > 0 ? col - 1 : col, col < totalGrid.shape()[1] - 1 ? col + 2 : col + 1};
-            pathCount.merge(pathsFound(totalGrid, totalGrid[boost::indices[rowRange][colRange]],
-                                       {rowRange.start(), colRange.start()},
-                                       (base != std::tuple{-1, -1}) ? base : std::tuple{row, col},
-                                       static_cast<char>(find + 1)));
+    for (auto [row, col]: indices) {
+        if (totalGrid[row][col] == find) {
+            if (find == '9') {
+                pathCount.emplace(base, std::tuple{row, col});
+                fmt::print("Found: '9' at ({},{}) Path Count: {}\n", row, col, pathCount);
+            } else {
+                fmt::print("Found: '{}' at ({},{})\n", find, row, col);
+                pathCount.merge(pathsFound(totalGrid, {row, col}, base, static_cast<char>(find + 1)));
+            }
         }
     }
     return pathCount;
@@ -55,7 +61,7 @@ main() {
 
     std::vector<std::string> lines;
     {
-        std::fstream input("input_test.txt", std::ios::in);
+        std::fstream input("input.txt", std::ios::in);
         if (!input.is_open()) {
             fmt::print(stderr, "Can't open file.");
             return 1;
@@ -78,11 +84,16 @@ main() {
 
     printGrid(grid);
 
-    auto paths = pathsFound(grid, grid, {0,0}, {-1,-1}, '0');
+    std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>> paths;
+    for (auto itr = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '0');
+         itr != multi_array_helper::end(grid);
+         itr = std::find(++itr, multi_array_helper::end(grid), '0')) {
+        std::tuple<long,long> base{itr.get_indices()[0],itr.get_indices()[1]};
+        paths.merge(pathsFound(grid, base, base, '1'));
+    }
 
 
-    for(auto path : paths)
-    {
+    for (auto path: paths) {
         fmt::print("({})\n", path);
     }
     fmt::print("Paths Found: {}", paths.size());
