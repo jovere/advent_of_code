@@ -21,10 +21,10 @@ printGrid(boost::multi_array<char, 2> const &grid) {
 
 using range = boost::multi_array_types::index_range;
 
-std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>>
+long
 pathsFound(boost::multi_array<char, 2> const &totalGrid, std::tuple<long, long> searchCenter,
            std::tuple<long, long> base, char find) {
-    std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>> pathCount;
+    long pathCount = 0;
     fmt::print("Searching:\n");
     std::vector<std::tuple<long, long>> indices;
     auto [cRow, cCol] = searchCenter;
@@ -45,11 +45,11 @@ pathsFound(boost::multi_array<char, 2> const &totalGrid, std::tuple<long, long> 
     for (auto [row, col]: indices) {
         if (totalGrid[row][col] == find) {
             if (find == '9') {
-                pathCount.emplace(base, std::tuple{row, col});
+                ++pathCount;
                 fmt::print("Found: '9' at ({},{}) Path Count: {}\n", row, col, pathCount);
             } else {
                 fmt::print("Found: '{}' at ({},{})\n", find, row, col);
-                pathCount.merge(pathsFound(totalGrid, {row, col}, base, static_cast<char>(find + 1)));
+                pathCount += pathsFound(totalGrid, {row, col}, base, static_cast<char>(find + 1));
             }
         }
     }
@@ -84,19 +84,15 @@ main() {
 
     printGrid(grid);
 
-    std::set<std::tuple<std::tuple<long, long>, std::tuple<long, long>>> paths;
+    long pathCount = 0;
     for (auto itr = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '0');
          itr != multi_array_helper::end(grid);
          itr = std::find(++itr, multi_array_helper::end(grid), '0')) {
         std::tuple<long,long> base{itr.get_indices()[0],itr.get_indices()[1]};
-        paths.merge(pathsFound(grid, base, base, '1'));
+        pathCount += pathsFound(grid, base, base, '1');
     }
 
-
-    for (auto path: paths) {
-        fmt::print("({})\n", path);
-    }
-    fmt::print("Paths Found: {}", paths.size());
+    fmt::print("Paths Found: {}", pathCount);
 
     return 0;
 }
