@@ -7,6 +7,30 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/range/adaptors.hpp>
 
+std::map<std::tuple<long,long>, long> lookupTable;
+
+long stoneCount(long stone, int depth) {
+    if (depth == 75) {
+        return 1;
+    } else if (auto itr = lookupTable.find({stone,depth}); itr != lookupTable.end()) {
+        return itr->second;
+    } else {
+        long out;
+        if (stone == 0) {
+            out = stoneCount(1, depth + 1);
+        } else if (auto str = std::to_string(stone); str.size() % 2 == 0) {
+            auto half = str.size() / 2;
+            auto first = std::stol(str.substr(0, half));
+            auto second = std::stol(str.substr(half));
+            out = stoneCount(first, depth + 1) + stoneCount(second, depth + 1);
+        } else {
+            out = stoneCount((stone) * 2024, depth + 1);
+        }
+        lookupTable[{stone,depth}] = out;
+        return out;
+    }
+}
+
 int
 main() {
     std::fstream input("input.txt", std::ios::in);
@@ -15,30 +39,27 @@ main() {
         return 1;
     }
 
-    std::string stone;
-
-    // Get all the data
-    std::vector<std::string> stones;
-    for (int index = 0; input >> stone; ++index) {
-        stones.push_back(stone);
-    }
-    fmt::print("Stone Count: {}\nStones: {}\n", stones.size(), stones);
-
-    for (int iteration = 0; iteration < 25; ++iteration) {
-        std::vector<std::string> newStones;
-        for (auto &stone: stones) {
-            if (stone == "0") {
-                newStones.emplace_back("1");
-            } else if (auto size = stone.size(); size % 2 == 0) {
-                auto half = size / 2;
-                newStones.push_back(stone.substr(0, half));
-                newStones.push_back(std::to_string(std::stol(stone.substr(half))));
-            } else {
-                newStones.push_back(std::to_string(std::stol(stone) * 2024));
-            }
+    std::vector<long> stones;
+    {    // Get all the data
+        long stone;
+        for (int index = 0; input >> stone; ++index) {
+            stones.push_back(stone);
         }
-        stones = std::move(newStones);
-        fmt::print("Iteration: {}\nStone Count: {}\n", iteration, stones.size());
+        fmt::print("Stone Count: {}\nStones: {}\n", stones.size(), stones);
     }
+
+    long count = 0;
+    for (auto const &stone: stones) {
+        fmt::print("Start Stone: {}", stone);
+        count += stoneCount(stone, 0);
+        fmt::print(" Done -- Count: {}\n", count);
+    }
+    for(auto entry:lookupTable)
+    {
+        fmt::print("{}\n", entry);
+    }
+    fmt::print("Lookup Table Size: {}\n", lookupTable.size());
+    fmt::print("Stone Count: {}\n", count);
+
     return 0;
 }
