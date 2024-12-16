@@ -18,59 +18,103 @@ printGrid(boost::multi_array<char, 2> const &grid) {
     }
 }
 
+enum Direction {
+    Up,
+    Left,
+    Down,
+    Right,
+    Unknown,
+};
+
+struct Location {
+
+    Location(long r, long c, char crop, Direction d) :
+            row(r), col(c), crop(crop), direction(d) {}
+
+    void sumAndReset() {
+        perimeterTotal += std::accumulate(fenceSide.begin(), fenceSide.end(), 0L);
+        fenceSide = {};
+    }
+
+    long row;
+    long col;
+    Direction direction{Unknown};
+    std::array<bool, 4> fenceSide{};
+    char crop;
+    long perimeterTotal = 0;
+    long areaTotal = 0;
+};
+
 using range = boost::multi_array_types::index_range;
 
-[[nodiscard]] std::tuple<long, long>
-calcRegion(boost::multi_array<char, 2> &field, std::tuple<long, long> start, char crop) {
-    long perimeter = 0;
-    long area = 1;
-    std::vector<std::tuple<long, long>> indices;
-    auto [cRow, cCol] = start;
+[[nodiscard]] Location
+calcRegion(boost::multi_array<char, 2> &field, Location start) {
+    ++start.areaTotal;
+    std::vector<Location> indices;
 
     // Change to lower to avoid recounting
-    field[cRow][cCol] = static_cast<char>(std::tolower(crop));
+    field[start.row][start.col] = static_cast<char>(std::tolower(start.crop));
 
-    if (cRow > 0) {
-        indices.emplace_back(cRow - 1, cCol);
+    if (start.row > 0) {
+        auto l = start;
+        --l.row;
+        l.direction = Direction::Up;
+        indices.emplace_back(l);
     }
     else
     {
-        ++perimeter;
+        start.fenceSide[Direction::Up] = true;
     }
-    if (cRow < field.shape()[0] - 1) {
-        indices.emplace_back(cRow + 1, cCol);
-    }
-    else
-    {
-        ++perimeter;
-    }
-    if (cCol > 0) {
-        indices.emplace_back(cRow, cCol - 1);
+    if (start.row < field.shape()[0] - 1) {
+        auto l = start;
+        ++l.row;
+        l.direction = Direction::Down;
+        indices.emplace_back(l);
     }
     else
     {
-        ++perimeter;
+        start.fenceSide[Direction::Down] = true;
     }
-    if (cCol < field.shape()[1] - 1) {
-        indices.emplace_back(cRow, cCol + 1);
+    if (start.col > 0) {
+        auto l = start;
+        --l.col;
+        l.direction = Direction::Left;
+        indices.emplace_back(l);
     }
     else
     {
-        ++perimeter;
+        start.fenceSide[Direction::Left] = true;
+    }
+    if (start.col < field.shape()[1] - 1) {
+        auto l = start;
+        ++l.col;
+        l.direction = Direction::Right;
+        indices.emplace_back(l);
+    }
+    else
+    {
+        start.fenceSide[Direction::Right] = true;
     }
 
-    for (auto [row, col]: indices) {
-        if (field[row][col] == crop) {
-            auto [a,p] = calcRegion(field, {row,col}, crop);
-            area += a;
-            perimeter += p;
-        }
-        else if (field[row][col] != tolower(crop))
-        {
-            ++perimeter;
+
+    for (auto l: indices) {
+        if (field[l.row][l.col] == l.crop) {
+            auto prevLocation = calcRegion(field, l);
+            if(start.direction != prevLocation.direction)
+            {
+                prevLocation.sumAndReset();
+            }
+            else
+            {
+                prevLocation.perimeterTotal += prevLocation.fenceSide[prevLocation.direction];
+                prevLocation.fenceSide[prevLocation.direction] = false;
+            }
+            start = prevLocation;
+        } else if (field[l.row][l.col] != tolower(l.crop)) {
+            start.fenceSide[l.direction] = true;
         }
     }
-    return {area, perimeter};
+    return start;
 }
 
 int
@@ -78,7 +122,7 @@ main() {
 
     std::vector<std::string> lines;
     {
-        std::fstream input("input.txt", std::ios::in);
+        std::fstream input("input_test.txt", std::ios::in);
         if (!input.is_open()) {
             fmt::print(stderr, "Can't open file.");
             return 1;
@@ -102,19 +146,18 @@ main() {
     printGrid(grid);
 
     long totalCost = 0;
-    for(auto row : grid | boost::adaptors::indexed())
-    {
+    for (auto row: grid | boost::adaptors::indexed()) {
         auto rIdx = row.index();
-        for(auto col : row.value() | boost::adaptors::indexed())
-        {
+        for (auto col: row.value() | boost::adaptors::indexed()) {
             auto cIdx = col.index();
             auto value = col.value();
 
-            if(std::isupper(value))
-            {
-                auto [a, p] = calcRegion(grid, {rIdx,cIdx}, value);
-                auto cost = a * p;
-                fmt::print("Region {}: Area: {} Perimeter: {} Cost: {}\n", value, a, p, cost);
+            if (std::isupper(value)) {
+                Location l{rIdx, cIdx, value, Direction::Right};
+                auto location = calcRegion(grid, l);
+                location.sumAndReset();
+                auto cost = location.areaTotal * location.perimeterTotal;
+                fmt::print("Region {}: Area: {} Perimeter: {} Cost: {}\n", value, location.areaTotal, location.perimeterTotal, cost);
                 totalCost += cost;
             }
         }
