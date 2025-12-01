@@ -19,32 +19,43 @@ main() {
             if (line.empty()) {
                 break;
             }
-            line[0] = (line[0] == 'R') ? ' ' : '-';
+            line[0] = (line[0] == 'R') ? '+' : '-';
             moves.push_back(std::stoi(line));
         }
 
         unsigned int index = 50;
-        fmt::print("Moves: {:-4}\n", fmt::join(moves, ", "));
-        fmt::print("Point: ");
+        unsigned int stopsOnZero = 0;
         unsigned int zeros = 0;
         for (auto move: moves)
         {
-            if (move < 0)
+            fmt::print("{:4}, ", move);
+            if (move > 0)
             {
-                index = ((index + 100) - ((-move) % 100)) % 100;
+                zeros += (move / 100);
+                index += (move % 100);
+                zeros += (index / 100);
+                index %= 100;
             }
             else
             {
-                index = (index + move) % 100;
+                // There has to be a better way of doing this...
+                if (index == 0) --zeros;
+                move = -move;
+                zeros += (move / 100);
+                index += 100;
+                index -= (move % 100);
+                zeros += (index / 100) == 0 ? 1 : 0;
+                index %= 100;
+                if (index == 0) ++zeros;
             }
 
             if (index == 0)
             {
-                ++zeros;
+                ++stopsOnZero;
             }
-            fmt::print("{:4}, ", index);
+            fmt::print("{:2}, {}\n", index, zeros);
         }
-        fmt::print("\nZeros: {}\n", zeros);
+        fmt::print("\nZeros: {}\n", stopsOnZero);
     }
 
 
