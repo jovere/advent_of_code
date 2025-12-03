@@ -5,6 +5,28 @@
 #include <fmt/ranges.h>
 #include <boost/algorithm/string.hpp>
 
+
+bool findLargestDigitLocation(std::string_view s, std::string& result, int width)
+{
+    if (width == 0)
+        return true;
+
+    for (char i = '9'; i >= '0'; --i)
+    {
+        auto digitIndex = s.find(i);
+        if (digitIndex != std::string::npos && digitIndex + width - 1 <= s.size())
+        {
+            if (findLargestDigitLocation( s.substr(digitIndex+1), result, width - 1))
+            {
+                result[12 - width] = s[digitIndex];
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 int
 main() {
 
@@ -25,29 +47,14 @@ main() {
         }
     }
 
-    long total = 0;
+    long long total = 0;
     for (const auto &bank : batteryBanks)
     {
-        int value = 0;
-        for (char i = '9'; i >= '0' && value == 0; --i)
-        {
-            auto firstDigit = bank.find(i);
-            if (firstDigit != std::string::npos)
-            {
-                for ( char j = '9'; j >= '0' && value == 0; --j)
-                {
-                    auto secondDigit = bank.find(j, firstDigit+1);
-                    if (secondDigit != std::string::npos)
-                    {
-                        std::string s {bank[firstDigit]};
-                        s += bank[secondDigit];
-                        value = std::stoi(s);
-                    }
-                }
-            }
-        }
+        std::string line{"            "};
+        findLargestDigitLocation(bank, line, 12);
+        fmt::print("Bank is {}\n", line);
+        long long value = std::stoll(line);
         total += value;
-        fmt::print("Bank is {}\n", value);
     }
 
     fmt::print("Total is {}\n", total);
