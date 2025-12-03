@@ -36,25 +36,53 @@ main() {
 
     fmt::print("Ranges: {}\n", rangesToSearch);
 
-    long long sum = 0;
+    long long part1Sum = 0;
+    long long part2Sum = 0;
     for (auto range : rangesToSearch)
     {
         for (auto x = range.first; x <= range.second; ++x)
         {
-            auto value = std::to_string(x);
+            auto const value = std::to_string(x);
+            // Part 1
             if ((value.length() % 2) == 0)
             {
                 auto length = value.length() / 2;
                 if (value.substr(0, length) == value.substr(length, length))
                 {
                     fmt::print("{}\n", x);
-                    sum += x;
+                    part1Sum += x;
                 }
+            }
+
+            // Part 2
+            // Only check up to half the length of value, since there can't be a duplicate if it's longer.
+            bool valid = true;
+            for (auto sampleWidth = 1; sampleWidth <= value.length() / 2 && valid; ++sampleWidth)
+            {
+                // Length must be a multiple of the sampleWidth
+                if (value.length() % sampleWidth == 0)
+                {
+                    valid = false;
+                    std::string sample = value.substr(0, sampleWidth);
+                    for (auto index = sampleWidth; index < value.length() && !valid; index += sampleWidth)
+                    {
+                        if (sample != value.substr(index, sampleWidth))
+                        {
+                            valid = true;
+                        }
+                    }
+                }
+            }
+            if (!valid)
+            {
+                fmt::print("-- {}\n", x);
+                part2Sum += x;
             }
         }
     }
 
-    fmt::print("Sum: {}\n", sum);
+    fmt::print("Sum: {}\n", part1Sum);
+    fmt::print("Sum2: {}\n", part2Sum);
 
     return 0;
 }
