@@ -18,7 +18,7 @@ printGrid(boost::multi_array<char, 2> const &grid) {
 
 using range = boost::multi_array_types::index_range;
 
-bool isAccessible(boost::multi_array<char, 2> const &grid, unsigned int x, unsigned int y)
+bool isAccessible(boost::multi_array<char, 2> &grid, unsigned int x, unsigned int y)
 {
     int count = 0;
     // Check if at the edge of the grid
@@ -94,15 +94,27 @@ main() {
     printGrid(grid);
 
     long accessible = 0;
-    for (auto itr = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '@');
-        itr != multi_array_helper::end(grid);
-        itr = std::find(++itr, multi_array_helper::end(grid), '@'))
+
+    auto removeRolls = [](boost::multi_array<char, 2>& grid)
     {
-        auto indices = itr.get_indices();
-        if (isAccessible(grid, indices.at(0), indices.at(1)))
+        auto rollsRemoved = 0;
+        for (auto itr = std::find(multi_array_helper::begin(grid), multi_array_helper::end(grid), '@');
+           itr != multi_array_helper::end(grid);
+           itr = std::find(++itr, multi_array_helper::end(grid), '@'))
         {
-            accessible++;
+            auto indices = itr.get_indices();
+            if (isAccessible(grid, indices.at(0), indices.at(1)))
+            {
+                grid[indices.at(0)][indices.at(1)] = 'x';
+                rollsRemoved++;
+            }
         }
+        return rollsRemoved;
+    };
+
+    while (auto removed = removeRolls(grid))
+    {
+        accessible += removed;
     }
 
     fmt::print("Accessible: {}\n", accessible);
