@@ -41,24 +41,52 @@ main() {
     }
 
     fmt::print("Ranges: {}\n", rangesToSearch);
-    fmt::print("Numbers: {}\n", numbersToSearchFor);
+    fmt::print("Range Count: {}\n", rangesToSearch.size());
 
-    long freshCount = 0;
-    for (auto number : numbersToSearchFor)
+    auto condenseRanges = [](std::vector<std::pair<long int,long int>> & ranges)
     {
-        int fresh = 0;
-        for (auto range : rangesToSearch)
+        std::vector<std::pair<long int,long int>> rangesCopy;
+        for (int i = 0; i < ranges.size() - 1; ++i)
         {
-            if (number >= range.first && number <= range.second)
+            if (ranges[i].second >= ranges[i + 1].first)
             {
-                fresh = 1;
-                break;
+                if (ranges[i].second < ranges[i + 1].second)
+                {
+                    rangesCopy.emplace_back(ranges[i].first, ranges[i+1].second);
+                }
+                else
+                {
+                    rangesCopy.emplace_back(ranges[i]);
+                }
+                ++i;
+            }
+            else
+            {
+                rangesCopy.emplace_back(ranges[i]);
             }
         }
+        if (rangesCopy.end()->second != ranges.end()->second)
+        {
+            rangesCopy.push_back(ranges.back());
+        }
+        return rangesCopy;
+    };
 
-        freshCount+= fresh;
+    std::vector<std::pair<long int, long int>> condensedRanges;
+    while ((condensedRanges = condenseRanges(rangesToSearch)) != rangesToSearch)
+    {
+        rangesToSearch = condensedRanges;
     }
 
+    fmt::print("Ranges: {}\n", rangesToSearch);
+    fmt::print("Range Count: {}\n", rangesToSearch.size());
+    fmt::print("Condensed Ranges {}\n", rangesToSearch);
+
+    long long freshCount = 0;
+    for (auto range : rangesToSearch)
+    {
+        freshCount += range.second - range.first + 1;
+    }
     fmt::print("Fresh count: {}\n", freshCount);
     return 0;
 }
