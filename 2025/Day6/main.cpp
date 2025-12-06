@@ -7,6 +7,8 @@
 
 int
 main() {
+
+#ifdef PART_ONE
     std::vector<long long> firstNumber;
     std::vector<long long> secondNumber;
     std::vector<long long> thirdNumber;
@@ -76,6 +78,53 @@ main() {
 
         fmt::print("Total numbers: {}\n", total);
     }
+#else
+    std::vector<std::string> strings;
+    {
+        std::fstream input("input.txt", std::ios::in);
+        if (!input.is_open()) {
+            fmt::print(stderr, "Can't open file.");
+            return 1;
+        }
+        std::string line;
+        while (std::getline(input, line))
+        {
+            strings.push_back(line);
+        }
+    }
 
+    std::vector<long long> numbers;
+    long long total = 0;
+    for (int i = strings[0].size() - 1; i >= 0 ; --i)
+    {
+        auto empty = true;
+        for (auto& token : strings)
+        {
+            if (token[i] != ' ')
+            {
+                empty = false;
+            }
+        }
+        if (empty)
+        {
+            numbers.clear();
+            continue;
+        }
+
+        numbers.push_back(std::stoll(std::string{strings[0][i], strings[1][i], strings[2][i], strings[3][i]}));
+        if (strings[4][i] == '*')
+        {
+            total += std::ranges::fold_left(numbers, 1, std::multiplies<long long>());
+        }
+        else if (strings[4][i] == '+')
+        {
+            total += std::ranges::fold_left(numbers, 0, std::plus<long long>());
+        }
+    }
+
+    fmt::print("Total: {}\n", total);
+
+
+#endif
     return 0;
 }
