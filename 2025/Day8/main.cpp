@@ -1,6 +1,7 @@
 #include <vector>
 #include <fstream>
 #include <utility>
+#include <set>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <boost/algorithm/string.hpp>
@@ -61,7 +62,7 @@ main()
 
     // Make a coordinate distance lookup table
     using Connection = std::tuple<long, size_t, size_t>;
-    std::vector<Connection> distanceTable;
+    std::deque<Connection> distanceTable;
     for (int i = 0; i < coordinates.size(); ++i)
     {
         for (int j = i + 1; j < coordinates.size(); ++j)
@@ -70,114 +71,65 @@ main()
         }
     }
 
-    // Only want the first 1000 connections
-    std::ranges::partial_sort(distanceTable, distanceTable.begin() + 1000);
-    distanceTable.resize(1000);
+    std::ranges::sort(distanceTable);
     fmt::print("distanceTable = {}\n", distanceTable);
 
-#if 1
     // Now combine the circuits
-    std::vector<std::vector<size_t>> circuits;
-    int connectionsUsed = 0;
-    while (connectionsUsed < distanceTable.size())
+    std::vector<std::set<size_t>> circuits;
+    Connection lastConnection= distanceTable.front();
+    distanceTable.pop_front();
+
+    // Fill the first entry to start the loop
+    circuits.emplace_back();
+    circuits.back().insert(std::get<1>(lastConnection));
+    circuits.back().insert(std::get<2>(lastConnection));
+
+    while (circuits[0].size() < coordinates.size())
     {
-        auto IsNotUsed = [](Connection const& c) { return std::get<0>(c) != -1; };
+        lastConnection = distanceTable.front();
+        distanceTable.pop_front();
 
-        circuits.emplace_back();
-        auto& circuit = circuits.back();
-        auto Use = [&circuit, &connectionsUsed](auto itr)
+        auto ConnectedCircuit = [&lastConnection](auto const& circuit)
         {
-            circuit.push_back(std::get<1>(*itr));
-            circuit.push_back(std::get<2>(*itr));
-            std::get<0>(*itr) = -1;
-            connectionsUsed++;
-        };
-
-        auto IsConnectedAndNotUsed = [&IsNotUsed, &circuit](Connection const& c)
-        {
-            return IsNotUsed(c) && std::ranges::any_of(circuit, [&c](auto const& junction)
+            return std::ranges::any_of(circuit, [&lastConnection](auto const& junction)
             {
-                return junction == std::get<1>(c)
-                    || junction == std::get<2>(c);
+                return junction == std::get<1>(lastConnection)
+                    || junction == std::get<2>(lastConnection);
             });
         };
 
-        auto firstNotUsed = std::ranges::find_if(distanceTable, IsNotUsed);
-        if (firstNotUsed != distanceTable.end())
+        auto cktItr = std::ranges::find_if(circuits, ConnectedCircuit);
+
+        if (cktItr == circuits.end())
         {
-            Use(firstNotUsed);
-            for (auto itr = std::find_if(firstNotUsed + 1, distanceTable.end(), IsConnectedAndNotUsed);
-                 itr != distanceTable.end();
-                 itr = std::find_if(firstNotUsed + 1, distanceTable.end(), IsConnectedAndNotUsed))
+            circuits.emplace_back();
+            circuits.back().insert(std::get<1>(lastConnection));
+            circuits.back().insert(std::get<2>(lastConnection));
+        }
+        else
+        {
+            // Check if there's another circuit with this connection
+            auto cktItr2 = std::find_if(cktItr+1, circuits.end(), ConnectedCircuit);
+            if (cktItr2 == circuits.end())
             {
-                Use(itr);
+                // No additional connection, put in first circuit
+                cktItr->insert(std::get<1>(lastConnection));
+                cktItr->insert(std::get<2>(lastConnection));
+            }
+            else
+            {
+                // Combine circuits
+                cktItr->merge(*cktItr2);
+
+                // Delete the second one
+                circuits.erase(cktItr2);
             }
         }
     }
 
-    for (auto& circuit : circuits)
-    {
-        std::ranges::sort(circuit);
-        circuit.erase(std::ranges::unique(circuit).begin(), circuit.end());
-    }
-
-    std::ranges::sort(circuits, [](auto const& a, auto const& b) { return a.size() > b.size(); });
-
-    for (auto circuit : circuits)
-    {
-        fmt::print("size = {}, circuit = {}\n", circuit.size(), circuit);
-    }
-
-    fmt::print("Mult 3: {}", circuits[0].size() * circuits[1].size() * circuits[2].size());
-#else
-    // Now combine the circuits
-    std::vector<std::vector<Connection>> circuits;
-    int connectionsUsed = 0;
-    while (connectionsUsed < distanceTable.size())
-    {
-        auto IsNotUsed = [](Connection const& c) { return std::get<0>(c) != -1; };
-
-        circuits.emplace_back();
-        auto& circuit = circuits.back();
-        auto firstNotUsed = std::ranges::find_if(distanceTable, IsNotUsed);
-
-        auto Use = [&circuit, &connectionsUsed](auto itr)
-        {
-            circuit.push_back(*itr);
-            std::get<0>(*itr) = -1;
-            connectionsUsed++;
-        };
-
-        if (firstNotUsed != distanceTable.end())
-        {
-            Use(firstNotUsed);
-            for (auto itr = std::find_if(firstNotUsed + 1, distanceTable.end(), IsNotUsed);
-                 itr != distanceTable.end();
-                 itr = std::find_if(itr + 1, distanceTable.end(), IsNotUsed))
-            {
-                if (std::ranges::any_of(circuit, [itr](Connection const& innerConnection)
-                {
-                    return std::get<1>(innerConnection) == std::get<1>(*itr)
-                        || std::get<1>(innerConnection) == std::get<2>(*itr)
-                        || std::get<2>(innerConnection) == std::get<1>(*itr)
-                        || std::get<2>(innerConnection) == std::get<2>(*itr);
-                }))
-                {
-                    Use(itr);
-                }
-            }
-        }
-    }
-
-    std::ranges::sort(circuits, [](auto const& a, auto const& b) { return a.size() > b.size(); });
-
-    for (auto circuit : circuits)
-    {
-        fmt::print("size = {}, circuit = {}\n", circuit.size(), circuit);
-    }
-
-    fmt::print("Mult 3: {}", circuits[0].size() * circuits[1].size() * circuits[2].size());
-#endif
+    auto coordinate1 = coordinates[std::get<1>(lastConnection)];
+    auto coordinate2 = coordinates[std::get<2>(lastConnection)];
+    fmt::print("Last Connection: {}, {} ; X*X: {}", coordinate1, coordinate2, coordinate1.x * coordinate2.x);
 
     return 0;
 }
